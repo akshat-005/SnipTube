@@ -28,7 +28,7 @@ export const VideoController = () => {
 
   // Keep track of time and loop
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: any;
     if (hasDuration && playerRef.current) {
       interval = setInterval(async () => {
         try {
@@ -55,6 +55,8 @@ export const VideoController = () => {
     console.log('Player is ready!');
     setIsPlaying(true);
     
+    if (!videoId) return;
+
     // Attempt to get the precise duration
     try {
       // @ts-ignore
@@ -63,7 +65,7 @@ export const VideoController = () => {
       
       if (duration && duration > 0 && !hasDuration) {
         setHasDuration(true);
-        const generatedSegments = SegmentManager.generateSegments(duration);
+        const generatedSegments = await SegmentManager.generateSmartSegments(videoId, duration);
         setSegments(generatedSegments);
         setPlayerReady(true);
       }
@@ -71,7 +73,7 @@ export const VideoController = () => {
       console.log('Could not get duration immediately, defaulting to 60s fallback');
       if (!hasDuration) {
         setHasDuration(true);
-        const generatedSegments = SegmentManager.generateSegments(60);
+        const generatedSegments = await SegmentManager.generateSmartSegments(videoId, 60);
         setSegments(generatedSegments);
         setPlayerReady(true);
       }

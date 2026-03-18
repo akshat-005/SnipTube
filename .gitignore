@@ -29,9 +29,29 @@ yarn-error.*
 # macOS
 .DS_Store
 *.pem
+*.log
+npm-debug*
+yarn-debug*
+yarn-error*
+
+# IDEs
+.idea/
+.vscode/
+.expo/
+.project
+.classpath
+.settings/
 
 # local env files
+.env
 .env*.local
+
+# backend
+backend/node_modules/
+backend/debug_*.js
+backend/debug_*.mjs
+*.mp3
+*.m4a
 
 # typescript
 *.tsbuildinfo
