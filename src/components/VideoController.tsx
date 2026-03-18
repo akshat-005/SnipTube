@@ -1,20 +1,52 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Dimensions } from 'react-native';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { useVideoStore } from '../store/useVideoStore';
 import { SegmentManager } from '../utils/SegmentManager';
+
+const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get('window');
 
 export const VideoController = () => {
   const playerRef = useRef(null);
   const videoId = useVideoStore((state) => state.videoId);
   const segments = useVideoStore((state) => state.segments);
   const setSegments = useVideoStore((state) => state.setSegments);
+  const setVideoTitle = useVideoStore((state) => state.setVideoTitle);
   const activeIndex = useVideoStore((state) => state.activeIndex);
   const setPlayerReady = useVideoStore((state) => state.setPlayerReady);
   const isMuted = useVideoStore((state) => state.isMuted);
+  const isPlaying = useVideoStore((state) => state.isPlaying);
+  const playbackRate = useVideoStore((state) => state.playbackRate);
+  const showCaptions = useVideoStore((state) => state.showCaptions);
+  const seekOffset = useVideoStore((state) => state.seekOffset);
+  const seekRel = useVideoStore((state) => state.seekRel);
+  const orientation = useVideoStore((state) => state.orientation);
 
   const [hasDuration, setHasDuration] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+  
+  const isLandscape = orientation === 'LANDSCAPE';
+  const playerWidth = isLandscape ? WINDOW_HEIGHT : WINDOW_WIDTH;
+  const playerHeight = isLandscape ? WINDOW_WIDTH : (WINDOW_WIDTH * 9) / 16;
+
+  // Handle relative seeks (skip 10s)
+  useEffect(() => {
+    if (seekOffset !== null && playerRef.current) {
+      const performSeek = async () => {
+        try {
+          // @ts-ignore
+          const currentTime = await playerRef.current.getCurrentTime();
+          const targetTime = Math.max(0, currentTime + seekOffset);
+          // @ts-ignore
+          playerRef.current.seekTo(targetTime, true);
+        } catch (e) {
+          console.log('Error during relative seek:', e);
+        } finally {
+          seekRel(null); // Reset the offset
+        }
+      };
+      performSeek();
+    }
+  }, [seekOffset]);
 
   // Seek when activeIndex changes
   useEffect(() => {
@@ -22,7 +54,6 @@ export const VideoController = () => {
       const targetTime = segments[activeIndex]?.start || 0;
       // @ts-ignore
       playerRef.current.seekTo(targetTime, true);
-      setIsPlaying(true);
     }
   }, [activeIndex, segments]);
 
@@ -42,7 +73,7 @@ export const VideoController = () => {
             playerRef.current.seekTo(currentSegment.start, true);
           }
         } catch (error) {
-          console.log('Error getting time', error);
+          // Silently ignore errors during interval
         }
       }, 250);
     }
@@ -53,7 +84,6 @@ export const VideoController = () => {
 
   const onReady = async () => {
     console.log('Player is ready!');
-    setIsPlaying(true);
     
     if (!videoId) return;
 
@@ -65,16 +95,18 @@ export const VideoController = () => {
       
       if (duration && duration > 0 && !hasDuration) {
         setHasDuration(true);
-        const generatedSegments = await SegmentManager.generateSmartSegments(videoId, duration);
+        const { segments: generatedSegments, title } = await SegmentManager.generateSmartSegments(videoId, duration);
         setSegments(generatedSegments);
+        setVideoTitle(title);
         setPlayerReady(true);
       }
     } catch (e) {
       console.log('Could not get duration immediately, defaulting to 60s fallback');
       if (!hasDuration) {
         setHasDuration(true);
-        const generatedSegments = await SegmentManager.generateSmartSegments(videoId, 60);
+        const { segments: generatedSegments, title } = await SegmentManager.generateSmartSegments(videoId, 60);
         setSegments(generatedSegments);
+        setVideoTitle(title);
         setPlayerReady(true);
       }
     }
@@ -92,24 +124,30 @@ export const VideoController = () => {
 
   return (
     <View style={styles.container} pointerEvents="none">
-      <YoutubePlayer
-        ref={playerRef}
-        height={'100%'}
-        width={'100%'}
-        videoId={videoId}
-        play={isPlaying}
-        mute={isMuted}
-        onReady={onReady}
-        onError={onError}
-        onChangeState={onStateChange}
-        initialPlayerParams={{
-          controls: false,
-          rel: false,
-          preventFullScreen: true,
-          modestbranding: true,
-          iv_load_policy: 3,
-        }}
-      />
+      <View style={[
+        styles.playerWrapper, 
+        { width: playerWidth, height: playerHeight }
+      ]}>
+        <YoutubePlayer
+          ref={playerRef}
+          height={playerHeight}
+          width={playerWidth}
+          videoId={videoId}
+          play={isPlaying}
+          mute={isMuted}
+          playbackRate={playbackRate}
+          onReady={onReady}
+          onError={onError}
+          onChangeState={onStateChange}
+          initialPlayerParams={{
+            controls: false,
+            rel: false,
+            preventFullScreen: true,
+            modestbranding: true,
+            iv_load_policy: showCaptions ? 1 : 3,
+          }}
+        />
+      </View>
     </View>
   );
 };
@@ -119,5 +157,10 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#000',
     zIndex: 1, // Behind the feed
+    justifyContent: 'center', // Center vertically
+    alignItems: 'center', // Center horizontally
+  },
+  playerWrapper: {
+    backgroundColor: '#000',
   },
 });

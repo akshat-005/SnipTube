@@ -2,9 +2,12 @@ import React, { useRef, useState, useEffect } from 'react';
 import { View, StyleSheet, Dimensions, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useVideoStore, Segment } from '../store/useVideoStore';
+import { useHistoryStore } from '../store/useHistoryStore';
 import { VideoController } from '../components/VideoController';
 import { ReelItem } from '../components/ReelItem';
+import { ControlOverlay } from '../components/ControlOverlay';
 import { Ionicons } from '@expo/vector-icons';
+import * as ScreenOrientation from 'expo-screen-orientation';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -14,10 +17,47 @@ export const ReelsScreen = () => {
   const activeIndex = useVideoStore((state) => state.activeIndex);
   const setActiveIndex = useVideoStore((state) => state.setActiveIndex);
   const playerReady = useVideoStore((state) => state.playerReady);
+  const videoId = useVideoStore((state) => state.videoId);
+  const videoTitle = useVideoStore((state) => state.videoTitle);
   const toggleMute = useVideoStore((state) => state.toggleMute);
   const isMuted = useVideoStore((state) => state.isMuted);
+  const orientation = useVideoStore((state) => state.orientation);
+  const setOrientation = useVideoStore((state) => state.setOrientation);
   
+  const saveHistory = useHistoryStore((state) => state.saveHistory);
+  const updateLastWatched = useHistoryStore((state) => state.updateLastWatched);
+
   const scrollY = useSharedValue(0);
+
+  // Orientation listener
+  useEffect(() => {
+    ScreenOrientation.unlockAsync();
+    const subscription = ScreenOrientation.addOrientationChangeListener((event) => {
+      const isLandscape = event.orientationInfo.orientation >= 3;
+      setOrientation(isLandscape ? 'LANDSCAPE' : 'PORTRAIT');
+    });
+    return () => ScreenOrientation.removeOrientationChangeListener(subscription);
+  }, []);
+
+  // Save history on load
+  useEffect(() => {
+    if (playerReady && videoId && segments.length > 0) {
+      saveHistory({
+        videoId,
+        title: videoTitle,
+        thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+        segments,
+        lastWatchedIndex: activeIndex,
+      });
+    }
+  }, [playerReady, videoId, segments]);
+
+  // Update progress
+  useEffect(() => {
+    if (videoId) {
+      updateLastWatched(videoId, activeIndex);
+    }
+  }, [activeIndex]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -33,8 +73,11 @@ export const ReelsScreen = () => {
   });
 
   const handleMomentumScrollEnd = (e: any) => {
-    const offsetY = e.nativeEvent.contentOffset.y;
-    const index = Math.round(offsetY / SCREEN_HEIGHT);
+    const isLandscape = orientation === 'LANDSCAPE';
+    const offset = isLandscape ? e.nativeEvent.contentOffset.x : e.nativeEvent.contentOffset.y;
+    const windowSize = isLandscape ? Dimensions.get('window').width : Dimensions.get('window').height;
+    
+    const index = Math.round(offset / windowSize);
     if (index !== activeIndex && index >= 0 && index < segments.length) {
       setActiveIndex(index);
     }
@@ -55,7 +98,9 @@ export const ReelsScreen = () => {
         </View>
       ) : (
         <Animated.FlatList
+          key={orientation} // Force re-render on orientation change to swap horizontal/vertical
           data={segments}
+          horizontal={orientation === 'LANDSCAPE'}
           keyExtractor={(_, index) => `reel-${index}`}
           renderItem={({ item, index }) => (
             <ReelItem 
@@ -66,6 +111,7 @@ export const ReelsScreen = () => {
           )}
           pagingEnabled
           showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
           onMomentumScrollEnd={handleMomentumScrollEnd}
@@ -73,7 +119,7 @@ export const ReelsScreen = () => {
           initialNumToRender={3}
           maxToRenderPerBatch={3}
           windowSize={5}
-          removeClippedSubviews={false} // essential to keep mask elements mounted
+          removeClippedSubviews={false}
         />
       )}
 
@@ -84,12 +130,8 @@ export const ReelsScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Floating Side Action UI */}
-      <View style={styles.sideActions}>
-        <TouchableOpacity style={styles.actionButton} onPress={toggleMute}>
-          <Ionicons name={isMuted ? "volume-mute" : "volume-high"} size={28} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+      {/* Advanced Player Controls Overlay */}
+      {playerReady && segments.length > 0 && <ControlOverlay />}
     </View>
   );
 };

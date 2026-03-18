@@ -36,13 +36,22 @@ app.post('/captions', async (req, res) => {
 
     console.log(`\n--- CAPTIONS REQUEST: ${videoId} ---`);
 
-    // 1. Fetch the YouTube watch page HTML using Node.js (no CORS issues here)
+    // 1. Get Video Title via yt-dlp
+    let videoTitle = 'YouTube Video';
+    try {
+      const { stdout } = await execPromise(`yt-dlp --get-title https://www.youtube.com/watch?v=${videoId}`);
+      videoTitle = stdout.trim();
+    } catch (e) {
+      console.log('[BACKEND] Could not get title, using default.');
+    }
+
+    // 2. Fetch video page to find caption tracks
     const pageRes = await axios.get(`https://www.youtube.com/watch?v=${videoId}`, {
       headers: BROWSER_HEADERS,
     });
     const html = pageRes.data;
 
-    // 2. Extract the captions object from page data
+    // 3. Extract the captions object from page data
     const match = html.match(/"captions":\s*(\{.*?\})\s*,\s*"videoDetails"/);
     if (!match) {
       console.log('[BACKEND] No captions object found in HTML.');
@@ -93,7 +102,7 @@ app.post('/captions', async (req, res) => {
     }
 
     console.log(`[BACKEND] Parsed ${items.length} caption items. Sending to app.`);
-    res.json({ items });
+    res.json({ items, title: videoTitle });
 
   } catch (err) {
     const msg = err.response?.data || err.message;

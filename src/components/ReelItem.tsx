@@ -8,7 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Segment, useVideoStore } from '../store/useVideoStore';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get('window');
 
 interface ReelItemProps {
   segment: Segment;
@@ -18,7 +18,12 @@ interface ReelItemProps {
 
 export const ReelItem: React.FC<ReelItemProps> = ({ segment, index, isActive }) => {
   const segments = useVideoStore((state) => state.segments);
+  const orientation = useVideoStore((state) => state.orientation);
   const opacity = useSharedValue(1);
+  
+  const isLandscape = orientation === 'LANDSCAPE';
+  const itemWidth = isLandscape ? WINDOW_HEIGHT : WINDOW_WIDTH;
+  const itemHeight = isLandscape ? WINDOW_WIDTH : WINDOW_HEIGHT;
 
   // Masking effect: when this item becomes active, we briefly show a black mask
   // to hide the buffering/seeking of the underlying video player, then fade it out.
@@ -39,7 +44,7 @@ export const ReelItem: React.FC<ReelItemProps> = ({ segment, index, isActive }) 
 
   // Render dummy overlay info
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { width: itemWidth, height: itemHeight }]}>
       {/* 
         This animated view covers the background video while not active,
         or fades out smoothly when active to reveal the video perfectly aligned.
@@ -65,8 +70,6 @@ export const ReelItem: React.FC<ReelItemProps> = ({ segment, index, isActive }) 
 
 const styles = StyleSheet.create({
   container: {
-    height: SCREEN_HEIGHT,
-    width: '100%',
     justifyContent: 'flex-end',
   },
   mask: {
