@@ -3,7 +3,6 @@ import { View, StyleSheet, Dimensions, TouchableOpacity, Text, ActivityIndicator
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useVideoStore, Segment } from '../store/useVideoStore';
 import { useHistoryStore } from '../store/useHistoryStore';
-import { VideoController } from '../components/VideoController';
 import { ReelItem } from '../components/ReelItem';
 import { ControlOverlay } from '../components/ControlOverlay';
 import { Ionicons } from '@expo/vector-icons';
@@ -85,12 +84,6 @@ export const ReelsScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* 
-        VideoController is positioned absolutely in the background.
-        It plays the video while the foreground UI masks the transitions.
-      */}
-      <VideoController />
-
       {!playerReady || segments.length === 0 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ffffff" />

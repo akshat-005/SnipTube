@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import Animated, { 
-  useAnimatedStyle, 
-  withTiming, 
-  useSharedValue, 
+import Animated, {
+  useAnimatedStyle,
+  withTiming,
+  useSharedValue,
   withDelay
 } from 'react-native-reanimated';
 import { Segment, useVideoStore } from '../store/useVideoStore';
+import { VideoController } from './VideoController';
 
 const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get('window');
 
@@ -44,12 +45,28 @@ export const ReelItem: React.FC<ReelItemProps> = ({ segment, index, isActive }) 
 
   // Render dummy overlay info
   return (
-    <View style={[styles.container, { width: itemWidth, height: itemHeight }]}>
+    <View 
+      style={[styles.container, { width: itemWidth, height: itemHeight }]}
+      pointerEvents="box-none"
+    >
+      {/* 
+        The Video Player is now rendered INSIDE each Reel Item when active.
+        This allows the native YouTube controls to be touchable and swipable.
+      */}
+      {isActive && (
+        <View style={StyleSheet.absoluteFill}>
+          <VideoController />
+        </View>
+      )}
+
       {/* 
         This animated view covers the background video while not active,
         or fades out smoothly when active to reveal the video perfectly aligned.
       */}
-      <Animated.View style={[styles.mask, maskStyle]} />
+      <Animated.View 
+        style={[styles.mask, maskStyle]} 
+        pointerEvents="none" 
+      />
 
       <View style={styles.overlay}>
         <View style={styles.contentContainer}>

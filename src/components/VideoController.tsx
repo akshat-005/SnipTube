@@ -118,16 +118,20 @@ export const VideoController = () => {
 
   const onStateChange = (state: string) => {
     console.log('State changed to:', state);
+    if (state === 'playing') useVideoStore.getState().setIsPlaying(true);
+    if (state === 'paused' || state === 'ended') useVideoStore.getState().setIsPlaying(false);
   };
 
   if (!videoId) return null;
 
   return (
-    <View style={styles.container} pointerEvents="none">
-      <View style={[
-        styles.playerWrapper, 
-        { width: playerWidth, height: playerHeight }
-      ]}>
+    <View style={styles.container}>
+      <View 
+        style={[
+          styles.playerWrapper, 
+          { width: playerWidth, height: playerHeight }
+        ]}
+      >
         <YoutubePlayer
           ref={playerRef}
           height={playerHeight}
@@ -140,9 +144,9 @@ export const VideoController = () => {
           onError={onError}
           onChangeState={onStateChange}
           initialPlayerParams={{
-            controls: false,
+            controls: true,
             rel: false,
-            preventFullScreen: true,
+            preventFullScreen: false,
             modestbranding: true,
             iv_load_policy: showCaptions ? 1 : 3,
           }}
@@ -154,11 +158,10 @@ export const VideoController = () => {
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     backgroundColor: '#000',
-    zIndex: 1, // Behind the feed
-    justifyContent: 'center', // Center vertically
-    alignItems: 'center', // Center horizontally
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   playerWrapper: {
     backgroundColor: '#000',
